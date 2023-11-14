@@ -1,52 +1,18 @@
 'use client';
 
 import type { CommentRoot } from '@repo/db/types';
-import { Button } from '@repo/ui/components/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/ui/components/select';
-import { toast } from '@repo/ui/components/use-toast';
-import { ChevronDown, ChevronLeft, ChevronRight, MessageCircle } from '@repo/ui/icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, MessageCircle } from '@repo/ui/icons';
 import clsx from 'clsx';
 import { useRef, useState } from 'react';
 import { Comment } from './comment';
 import { CommentInput } from './comment-input';
 import { CommentSkeleton } from './comment-skeleton';
-import { addComment } from './comment.action';
 import { getPaginatedComments, type PreselectedCommentMetadata } from './getCommentRouteData';
 import NoComments from './nocomments';
-
-const sortKeys = [
-  {
-    label: 'Newest Comments',
-    value: 'newest',
-    key: 'createdAt',
-    order: 'desc',
-  },
-  {
-    label: 'Oldest Comments',
-    value: 'oldest',
-    key: 'createdAt',
-    order: 'asc',
-  },
-  {
-    label: 'Most Votes',
-    value: 'votes',
-    key: 'vote',
-    order: 'desc',
-  },
-  {
-    label: 'Most Replies',
-    value: 'replies',
-    key: 'replies',
-    order: 'desc',
-  },
-] as const;
+import { Pagination } from '../pagination';
+import { SortSelect } from '../sort-select';
+import { useComments } from './comments.hooks';
+import { sortKeys } from './comments.constants';
 
 interface Props {
   preselectedCommentMetadata?: PreselectedCommentMetadata;
@@ -58,58 +24,23 @@ interface Props {
 // million-ignore
 export function Comments({ preselectedCommentMetadata, rootId, type, expanded = false }: Props) {
   const [showComments, setShowComments] = useState(expanded);
-  const [text, setText] = useState('');
   const commentContainerRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
-  const [page, setPage] = useState(preselectedCommentMetadata?.page ?? 1);
-  const [sortKey, setSortKey] = useState<(typeof sortKeys)[number]>(sortKeys[0]);
-  const queryKey = [`${type.toLowerCase()}-${rootId}-comments`, sortKey.value, page];
-  const { status, data } = useQuery({
-    queryKey,
-    queryFn: () =>
-      getPaginatedComments({
-        rootId,
-        page,
-        rootType: type,
-        sortKey: sortKey.key,
-        sortOrder: sortKey.order,
-      }),
-    keepPreviousData: true,
-    staleTime: 60000, // one minute
-    refetchOnWindowFocus: false,
+  const {
+    data,
+    addComment,
+    commentsMeta,
+    status,
+    changePage,
+    changeSorting,
+    deleteComment,
+    updateComment,
+  } = useComments({
+    type,
+    rootId,
   });
 
-  async function createChallengeComment() {
-    try {
-      const res = await addComment({
-        text,
-        rootId,
-        rootType: type,
-      });
-      if (res === 'text_is_empty') {
-        toast({
-          title: 'Empty Comment',
-          description: <p>You cannot post an empty comment.</p>,
-        });
-      } else if (res === 'unauthorized') {
-        toast({
-          title: 'Unauthorized',
-          description: <p>You need to be signed in to post a comment.</p>,
-        });
-      }
-      setText('');
-      queryClient.invalidateQueries([`${type.toLowerCase()}-${rootId}-comments`]);
-    } catch (e) {
-      toast({
-        title: 'Unauthorized',
-        variant: 'destructive',
-        description: <p>You need to be signed in to post a comment.</p>,
-      });
-    }
-  }
-
   const handleChangePage = (page: number) => {
-    setPage(page);
+    changePage(page);
     commentContainerRef.current?.scroll({
       top: 128,
       behavior: 'smooth',
@@ -135,7 +66,7 @@ export function Comments({ preselectedCommentMetadata, rootId, type, expanded = 
           <div className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
             Comments
-            {data?.totalComments != null && <span>({data.totalComments})</span>}
+            {data?.totalComments != null ? <span>({data.totalComments})</span> : null}
           </div>
           <ChevronDown
             className={clsx('h-4 w-4 duration-300', {
@@ -155,50 +86,30 @@ export function Comments({ preselectedCommentMetadata, rootId, type, expanded = 
           ref={commentContainerRef}
         >
           <div className="m-2 mb-4 mt-0">
-            <CommentInput
-              mode="create"
-              onChange={setText}
-              onSubmit={createChallengeComment}
-              value={text}
-            />
+            <CommentInput mode="create" onSubmit={addComment} />
           </div>
           {(data?.comments.length ?? 0) > 0 && (
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Select
-                value={sortKey.value}
-                defaultValue="newest"
-                onValueChange={(value) => {
-                  setSortKey(sortKeys.find((sk) => sk.value === value) ?? sortKeys[0]);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort Key" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortKeys.map((sortKey, index) => (
-                    <SelectItem key={index} value={sortKey.value}>
-                      {sortKey.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <SortSelect
+              currentSortKey={commentsMeta.sort}
+              totalSortKeys={sortKeys}
+              onValueChange={changeSorting}
+            />
           )}
-          {status === 'loading' && <CommentSkeleton />}
+          {status === 'pending' && <CommentSkeleton />}
           <div className="flex-1">
             {status === 'success' &&
-              (data.comments.length === 0 ? (
+              (data?.comments.length === 0 ? (
                 <NoComments />
               ) : (
-                data.comments.map((comment) => (
+                data?.comments.map((comment) => (
                   <Comment
+                    key={comment.id}
                     preselectedCommentMetadata={preselectedCommentMetadata}
                     comment={comment}
-                    key={comment.id}
-                    queryKey={queryKey}
                     rootId={rootId}
                     type={type}
+                    deleteComment={deleteComment}
+                    updateComment={updateComment}
                   />
                 ))
               ))}
@@ -206,7 +117,7 @@ export function Comments({ preselectedCommentMetadata, rootId, type, expanded = 
           {(data?.totalPages ?? 0) > 1 && (
             <div className="mt-2 flex justify-center">
               <Pagination
-                currentPage={page}
+                currentPage={commentsMeta.page}
                 onClick={handleChangePage}
                 totalPages={data?.totalPages ?? 0}
               />
@@ -215,64 +126,5 @@ export function Comments({ preselectedCommentMetadata, rootId, type, expanded = 
         </div>
       </div>
     </div>
-  );
-}
-
-function Pagination({
-  currentPage,
-  totalPages,
-  onClick,
-}: {
-  totalPages: number;
-  currentPage: number;
-  onClick: (page: number) => void;
-}) {
-  const maxVisiblePages = 5;
-  const halfVisiblePages = Math.floor(maxVisiblePages / 2);
-
-  let startPage = currentPage - halfVisiblePages;
-  let endPage = currentPage + halfVisiblePages;
-
-  if (startPage <= 0) {
-    startPage = 1;
-    endPage = Math.min(totalPages, maxVisiblePages);
-  }
-
-  if (endPage > totalPages) {
-    endPage = totalPages;
-    startPage = Math.max(1, totalPages - maxVisiblePages + 1);
-  }
-
-  const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-
-  return (
-    <nav className="justify-space-between flex items-center gap-2">
-      <Button
-        disabled={currentPage === 1}
-        onClick={() => onClick(Math.max(0, currentPage - 1))}
-        variant="ghost"
-      >
-        <ChevronLeft />
-      </Button>
-      {pages.map((page) => (
-        <Button
-          className={clsx('border-border dark:border-ring border', {
-            'bg-border dark:bg-neutral-700': page === currentPage,
-          })}
-          key={`pagination-${page}`}
-          onClick={() => onClick(page)}
-          variant="ghost"
-        >
-          {page}
-        </Button>
-      ))}
-      <Button
-        disabled={currentPage === totalPages}
-        onClick={() => onClick(Math.min(totalPages, currentPage + 1))}
-        variant="ghost"
-      >
-        <ChevronRight />
-      </Button>
-    </nav>
   );
 }

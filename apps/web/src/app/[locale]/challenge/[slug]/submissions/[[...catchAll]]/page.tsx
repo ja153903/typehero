@@ -1,11 +1,11 @@
-import { cache } from 'react';
+import { auth } from '@repo/auth/server';
 import { prisma } from '@repo/db';
-import { getServerAuthSession } from '@repo/auth/server';
 import { notFound, redirect } from 'next/navigation';
-import { Submissions } from './_components';
-import { withUnstableCache } from '~/utils/withUnstableCache';
+import { cache } from 'react';
 import { isBetaUser } from '~/utils/server/is-beta-user';
-import { createChallengeSubmissionCacheKey } from './save-submission.action';
+import { withUnstableCache } from '~/utils/withUnstableCache';
+import { Submissions } from './_components';
+import { createChallengeSubmissionCacheKey } from './cache-keys';
 
 interface Props {
   params: {
@@ -19,7 +19,7 @@ export const metadata = {
 };
 
 export default async function SubmissionPage({ params: { slug } }: Props) {
-  const session = await getServerAuthSession();
+  const session = await auth();
   const isBeta = await isBetaUser(session);
 
   if (!isBeta) {
