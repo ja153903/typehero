@@ -120,13 +120,24 @@ export function CodePanel(props: CodePanelProps) {
             if (!model) return null;
 
             const tsWorker = await getTsWorker(model.uri);
-            const errors = await Promise.all([
+            const testErrors = await Promise.all([
               tsWorker.getSemanticDiagnostics(TESTS_PATH),
               tsWorker.getSyntacticDiagnostics(TESTS_PATH),
               tsWorker.getCompilerOptionsDiagnostics(TESTS_PATH),
             ] as const);
 
-            setTsErrors(errors);
+            const userErrors = await Promise.all([
+              tsWorker.getSemanticDiagnostics(USER_CODE_PATH),
+              tsWorker.getSyntacticDiagnostics(USER_CODE_PATH),
+              tsWorker.getCompilerOptionsDiagnostics(USER_CODE_PATH),
+            ] as const);
+
+            setTsErrors(
+              testErrors.map((err, i) => {
+                return [...err, ...(userErrors[i] || [])];
+              }) as TsErrors,
+            );
+
             setTestEditorState(editor);
           },
           user: async (editor, monaco) => {
@@ -148,7 +159,17 @@ export function CodePanel(props: CodePanelProps) {
               tsWorker.getCompilerOptionsDiagnostics(USER_CODE_PATH),
             ] as const);
 
-            setTsErrors(testErrors);
+            const userErrors = await Promise.all([
+              tsWorker.getSemanticDiagnostics(USER_CODE_PATH),
+              tsWorker.getSyntacticDiagnostics(USER_CODE_PATH),
+              tsWorker.getCompilerOptionsDiagnostics(USER_CODE_PATH),
+            ] as const);
+
+            setTsErrors(
+              testErrors.map((err, i) => {
+                return [...err, ...(userErrors[i] || [])];
+              }) as TsErrors,
+            );
           },
         }}
         onChange={{
@@ -197,7 +218,17 @@ export function CodePanel(props: CodePanelProps) {
               tsWorker.getCompilerOptionsDiagnostics(TESTS_PATH),
             ] as const);
 
-            setTsErrors(testErrors);
+            const userErrors = await Promise.all([
+              tsWorker.getSemanticDiagnostics(USER_CODE_PATH),
+              tsWorker.getSyntacticDiagnostics(USER_CODE_PATH),
+              tsWorker.getCompilerOptionsDiagnostics(USER_CODE_PATH),
+            ] as const);
+
+            setTsErrors(
+              testErrors.map((err, i) => {
+                return [...err, ...(userErrors[i] || [])];
+              }) as TsErrors,
+            );
           },
         }}
       />
