@@ -6,6 +6,7 @@ import { getStaticParams } from '~/locales/server';
 import '../styles/globals.css';
 import { Providers } from './[locale]/providers';
 import { OG_URL, tagline } from './metadata';
+import { ContextProviders } from './[locale]/context-providers';
 
 export function generateStaticParams() {
   return getStaticParams();
@@ -55,10 +56,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html suppressHydrationWarning lang="en">
       <head>
-        <meta
-          content="Level up your typescript skills with interactive exercises"
-          name="description"
-        />
         <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -67,9 +64,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} flex flex-col`}>
         <Providers>
-          <Navigation />
-          {children}
-          <Toaster />
+          <ContextProviders>
+            <Navigation />
+            {children}
+            <Toaster />
+          </ContextProviders>
         </Providers>
         <Analytics />
       </body>

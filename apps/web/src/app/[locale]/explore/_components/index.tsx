@@ -1,22 +1,14 @@
 import { auth } from '@repo/auth/server';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Footsies } from '~/components/footsies';
-import { isBetaUser } from '~/utils/server/is-beta-user';
 import { ExploreSection } from './explore-section';
 import { ExploreSectionSkeleton } from './explore-section-skeleton';
-import { FemPromo } from '../../aot-2023/_components/fem-promo';
 
 // CI fails without this
 export const dynamic = 'force-dynamic';
 
 export async function Explore() {
   const session = await auth();
-  const isBeta = await isBetaUser(session);
-
-  if (!isBeta) {
-    return redirect('/claim');
-  }
 
   return (
     <>
@@ -30,9 +22,6 @@ export async function Explore() {
             programming abilities. We hope you find the{' '}
             <span className="font-semibold dark:text-neutral-200">perfect</span> challenge!
           </p>
-        </div>
-        <div className="container flex items-center justify-center">
-          <FemPromo blurb="Elevate your TypeScript with our trusted partner" />
         </div>
         <Suspense fallback={<ExploreSectionSkeleton />}>
           <ExploreSection

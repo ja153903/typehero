@@ -12,8 +12,8 @@ export async function ingestChallenges(challengePath: string) {
 
       if (
         itemPath.includes('blank') ||
-        itemPath.includes('solutions') ||
-        itemPath.includes('aot')
+        itemPath.includes('solutions')
+        // itemPath.includes('aot')
       ) {
         continue;
       }
@@ -84,6 +84,17 @@ async function buildChallenge(pathToDirectory: string) {
           challengeToCreate.slug = jsonData.id;
           challengeToCreate.shortDescription = jsonData.description;
           challengeToCreate.author = jsonData.author;
+        } catch (jsonError) {
+          console.error('Error parsing JSON:', jsonError);
+        }
+      }
+      if (fileName === 'tsconfig') {
+        try {
+          const fileContents = await fs.promises.readFile(itemPath, 'utf8');
+          const jsonData = JSON.parse(fileContents);
+          if (jsonData.compilerOptions != null) {
+            challengeToCreate.tsconfig = jsonData.compilerOptions;
+          }
         } catch (jsonError) {
           console.error('Error parsing JSON:', jsonError);
         }
